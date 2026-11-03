@@ -1,0 +1,60 @@
+# Default-deny, then explicit allows -- demonstrates least-privilege network segmentation
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: cloudopt
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-frontend
+  namespace: cloudopt
+spec:
+  podSelector:
+    matchLabels: { app: cloudopt-frontend }
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector: {}  # allow from ingress-nginx controller namespace
+      ports:
+        - port: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend-and-ingress-to-backend
+  namespace: cloudopt
+spec:
+  podSelector:
+    matchLabels: { app: cloudopt-backend }
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: cloudopt-frontend } }
+      ports:
+        - port: 5000
+  egress:
+    - to: []  # backend needs egress to MongoDB Atlas (external) and ml-service
+      ports:
+        - port: 443
+        - port: 8000
+        - port: 27017
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-backend-to-ml-service
+  namespace: cloudopt
+spec:
+  podSelector:
+    matchLabels: { app: cloudopt-ml-service }
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: cloudopt-backend } }
+      ports:
+        - port: 8000

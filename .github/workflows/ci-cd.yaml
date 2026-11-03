@@ -1,0 +1,75 @@
+name: CloudOpt CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: cd backend && npm install && node --check src/server.js
+
+  test-ml-service:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: cd ml-service && pip install -r requirements.txt && python -c "import app"
+
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: cd frontend && npm install && npm run build
+
+  build-and-push:
+    needs: [test-backend, test-ml-service, build-frontend]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        service: [backend, frontend, ml-service]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v5
+        with:
+          context: ./${{ matrix.service }}
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/cloudopt-${{ matrix.service }}:latest
+
+  # Deploy job runs on a *self-hosted* runner installed on your Oracle VM (see
+  # docs/DEPLOYMENT_GUIDE.md) -- this is what makes free-tier CD actually work,
+  # since GitHub-hosted runners can't reach your private k3s cluster directly.
+  deploy:
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main'
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - name: Helm upgrade
+        run: |
+          helm upgrade --install cloudopt ./helm/cloudopt \
+            -n cloudopt --create-namespace \
+            -f helm/cloudopt/values-prod.yaml \
+            --set image.tag=latest

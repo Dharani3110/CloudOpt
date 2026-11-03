@@ -1,0 +1,49 @@
+version: "3.9"
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: cloudopt-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
+
+  ml-service:
+    build: ./ml-service
+    container_name: cloudopt-ml-service
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    container_name: cloudopt-backend
+    environment:
+      - PORT=5000
+      - MONGO_URI=mongodb://mongo:27017/cloudopt
+      - JWT_SECRET=dev_secret_change_me
+      - ML_SERVICE_URL=http://ml-service:8000
+      - CORS_ORIGIN=http://localhost:3000
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mongo
+      - ml-service
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:5000/api
+    container_name: cloudopt-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  mongo_data:

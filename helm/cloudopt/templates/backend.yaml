@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudopt-backend
+  namespace: {{ .Values.namespace }}
+  labels: { app: cloudopt-backend }
+spec:
+  replicas: {{ .Values.backend.replicaCount }}
+  selector:
+    matchLabels: { app: cloudopt-backend }
+  template:
+    metadata:
+      labels: { app: cloudopt-backend }
+    spec:
+      serviceAccountName: cloudopt-sa
+      containers:
+        - name: backend
+          image: "{{ .Values.image.registry }}/cloudopt-backend:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports: [{ containerPort: 5000 }]
+          envFrom:
+            - configMapRef: { name: cloudopt-config }
+            - secretRef: { name: cloudopt-secrets }
+          resources: {{- toYaml .Values.backend.resources | nindent 12 }}
+          readinessProbe:
+            httpGet: { path: /health, port: 5000 }
+            initialDelaySeconds: 5
+          livenessProbe:
+            httpGet: { path: /health, port: 5000 }
+            initialDelaySeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudopt-backend
+  namespace: {{ .Values.namespace }}
+spec:
+  selector: { app: cloudopt-backend }
+  ports: [{ port: 5000, targetPort: 5000 }]

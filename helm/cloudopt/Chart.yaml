@@ -1,0 +1,6 @@
+apiVersion: v2
+name: cloudopt
+description: CloudOpt -- intelligent cloud resource scheduler & cost optimizer
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudopt-ml-service
+  namespace: cloudopt
+  labels:
+    app: cloudopt-ml-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cloudopt-ml-service
+  template:
+    metadata:
+      labels:
+        app: cloudopt-ml-service
+    spec:
+      containers:
+        - name: ml-service
+          image: ghcr.io/YOUR_GH_USERNAME/cloudopt-ml-service:latest
+          ports:
+            - containerPort: 8000
+          resources:
+            requests: { cpu: "100m", memory: "256Mi" }
+            limits: { cpu: "500m", memory: "512Mi" }
+          readinessProbe:
+            httpGet: { path: /health, port: 8000 }
+            initialDelaySeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudopt-ml-service
+  namespace: cloudopt
+spec:
+  selector:
+    app: cloudopt-ml-service
+  ports:
+    - port: 8000
+      targetPort: 8000
+  type: ClusterIP

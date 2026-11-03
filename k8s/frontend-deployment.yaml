@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudopt-frontend
+  namespace: cloudopt
+  labels:
+    app: cloudopt-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cloudopt-frontend
+  template:
+    metadata:
+      labels:
+        app: cloudopt-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: ghcr.io/YOUR_GH_USERNAME/cloudopt-frontend:latest
+          ports:
+            - containerPort: 80
+          resources:
+            requests: { cpu: "50m", memory: "64Mi" }
+            limits: { cpu: "200m", memory: "128Mi" }
+          readinessProbe:
+            httpGet: { path: /, port: 80 }
+            initialDelaySeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudopt-frontend
+  namespace: cloudopt
+spec:
+  selector:
+    app: cloudopt-frontend
+  ports:
+    - port: 80
+      targetPort: 80
+  type: ClusterIP

@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudopt-backend
+  namespace: cloudopt
+  labels:
+    app: cloudopt-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cloudopt-backend
+  template:
+    metadata:
+      labels:
+        app: cloudopt-backend
+    spec:
+      serviceAccountName: cloudopt-sa
+      containers:
+        - name: backend
+          image: ghcr.io/YOUR_GH_USERNAME/cloudopt-backend:latest
+          ports:
+            - containerPort: 5000
+          envFrom:
+            - configMapRef: { name: cloudopt-config }
+            - secretRef: { name: cloudopt-secrets }
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits: { cpu: "500m", memory: "256Mi" }
+          readinessProbe:
+            httpGet: { path: /health, port: 5000 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: 5000 }
+            initialDelaySeconds: 15
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudopt-backend
+  namespace: cloudopt
+spec:
+  selector:
+    app: cloudopt-backend
+  ports:
+    - port: 5000
+      targetPort: 5000
+  type: ClusterIP

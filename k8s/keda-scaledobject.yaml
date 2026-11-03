@@ -1,0 +1,21 @@
+# OPTIONAL -- requires KEDA installed (helm install keda kedacore/keda -n keda --create-namespace)
+# Predictive autoscaling: scales backend based on the queued-job-count metric exposed
+# at /api/metrics/summary, which itself reflects the ML-predicted workload rather than
+# only current CPU usage. This is the "AI-driven scaling" comparison against plain HPA.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: cloudopt-backend-scaledobject
+  namespace: cloudopt
+spec:
+  scaleTargetRef:
+    name: cloudopt-backend
+  minReplicaCount: 2
+  maxReplicaCount: 8
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+        metricName: cloudopt_predicted_queue_depth
+        query: cloudopt_predicted_queue_depth
+        threshold: "5"

@@ -1,0 +1,43 @@
+namespace: cloudopt
+
+image:
+  registry: ghcr.io/YOUR_GH_USERNAME
+  tag: latest
+  pullPolicy: IfNotPresent
+
+backend:
+  replicaCount: 2
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 256Mi }
+
+frontend:
+  replicaCount: 2
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 200m, memory: 128Mi }
+
+mlService:
+  replicaCount: 1
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+
+ingress:
+  enabled: true
+  host: cloudopt.YOUR_DOMAIN_OR_NIP_IO
+  tlsSecretName: cloudopt-tls
+  clusterIssuer: letsencrypt-prod
+
+autoscaling:
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilization: 70
+
+secrets:
+  # DO NOT put real values here in git; override with --set or a separate
+  # untracked values-prod.yaml, or better, use Sealed Secrets / ESO instead.
+  mongoUri: "CHANGE_ME"
+  jwtSecret: "CHANGE_ME"
